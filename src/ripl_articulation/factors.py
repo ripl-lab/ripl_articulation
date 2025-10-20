@@ -149,3 +149,69 @@ def RelativePoseFactor(sym_w_T_a, sym_w_T_b, sym_theta, sym_xi, noise_model) -> 
     return gtsam.CustomFactor(noise_model,
                               [sym_w_T_a, sym_w_T_b, sym_theta, sym_xi],
                               relative_pose_factor)
+
+
+def compute_relative_point_error(w_T_a : gtsam.Pose3,
+                                 w_P_b : gtsam.Point3,
+                                 theta : float,
+                                 xi : np.ndarray,
+                                 jacobians : Optional[List[np.ndarray]]) -> np.ndarray:
+    if jacobians is not None:
+        J_a  = np.zeros((6, 6), order='F')
+        J_xi_helper = np.zeros((6, 6), order='F')
+        # Negative because we do b - predicted
+        J_b  = np.eye(3, order='F')
+        J_xi_expmap = np.zeros((6, 6), order='F')
+
+        w_T_predicted = w_T_a.compose(gtsam.Pose3.Expmap(xi * theta, J_xi_expmap), J_a, J_xi_helper) # type: gtsam.Pose3
+        error = w_P_b - w_T_predicted.translation()
+
+        # Chain rule
+        J_xi = J_xi_helper @ J_xi_expmap
+
+        jacobians[0] = -J_a[3:]
+        jacobians[1] = J_b
+        jacobians[2] = -(J_xi @ xi)[3:]
+        jacobians[3] = -J_xi[3:]
+    else:
+        w_T_predicted = w_T_a.compose(gtsam.Pose3.Expmap(xi * theta)) # type: gtsam.Pose3
+        error = w_P_b - w_T_predicted.translation()
+
+    return error
+
+
+def relative_point_factor(this : gtsam.CustomFactor,
+                          values : gtsam.Values,
+                          jacobians : Optional[List[np.ndarray]]) -> np.ndarray:
+    sym_w_T_a = this.keys()[0]
+    sym_w_P_b = this.keys()[1]
+    sym_theta = this.keys()[2]
+    sym_xi    = this.keys()[3]
+
+    w_T_a_estimate = values.atPose3(sym_w_T_a)
+    w_P_b_estimate = values.atPoint3(sym_w_P_b)
+    xi_estimate    = values.atVector(sym_xi)
+    theta_estimate = values.atDouble(sym_theta)
+
+    return compute_relative_point_error(w_T_a_estimate,
+                                        w_P_b_estimate,
+                                        theta_estimate,
+                                        xi_estimate,
+                                        jacobians)
+
+def RelativePointFactor(sym_w_T_a, sym_w_P_b, sym_theta, sym_xi, noise_model) -> gtsam.CustomFactor:
+    """Syntactic sugar for instantiating a relative point factor for the GTSAM graph.
+
+    Args:
+        sym_w_T_a (_type_): Symbol referencing the reference frame A.
+        sym_w_P_b (_type_): Symbol referencing the point observation B.
+        sym_theta (_type_): Symbol referencing the current theta estimate.
+        sym_xi (_type_): Symbol referencing the Xi estimate.
+        noise_model (_type_): Noise model of the error.
+
+    Returns:
+        gtsam.CustomFactor: Instantiated custom factor for insertion in the graph. 
+    """
+    return gtsam.CustomFactor(noise_model,
+                              [sym_w_T_a, sym_w_P_b, sym_theta, sym_xi],
+                              relative_point_factor)
