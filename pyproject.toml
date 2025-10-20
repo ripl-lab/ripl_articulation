@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ripl_articulation"
+version = "2025.10.20"
+authors = [
+  { name="Russell Buchanan", email="russell.buchanan@uwaterloo.ca" },
+  { name="Adrian Röfer", email="aroefer@cs.uni-freiburg.de" },
+]
+description = "Package containing the articulation estimation tools of the RIPL Lab of the University of Waterloo."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "	GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+  "numpy<=1.26.4",
+  "gtsam>=4.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/ripl-lab/ripl_articulation"
+Issues = "https://github.com/ripl-lab/ripl_articulation/issues"
+
+[project.optional-dependencies]
+test = [
+    "scipy>=1.14.0",
+    "tqdm",
+    "pytest",
+    "pytest-cov"  # optional for coverage reports
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
